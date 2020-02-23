@@ -6,7 +6,8 @@
 #include "MFCApplication1.h"
 #include "MFCApplication1Dlg.h"
 #include "afxdialogex.h"
-#include <opencv2/opencv.hpp>
+//#include <opencv2/opencv.hpp>
+
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -14,11 +15,13 @@
 
 using namespace cv;
 
-CvCapture* capture;
-CRect rect;
-CDC *pDC;
-HDC hDC;
-CWnd *pwnd;
+CvCapture* camera_capture;
+CRect showImage_clientRect;
+CDC *showImage_pDC;
+HDC showImage_hDC;
+CWnd *showImage_pwnd;
+
+CvVideoWriter* cameraVideoWriter = 0;
 
 // 用于应用程序“关于”菜单项的 CAboutDlg 对话框
 
@@ -67,8 +70,8 @@ CMFMarchTrainDlg::CMFMarchTrainDlg(CWnd* pParent /*=NULL*/)
 void CMFMarchTrainDlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialogEx::DoDataExchange(pDX);
-	DDX_Control(pDX, IDC_BUTTON1, m_Enable);
-	DDX_Control(pDX, IDC_BUTTON2, m_Exit);
+	//DDX_Control(pDX, IDC_BUTTON1, m_Enable);
+	//DDX_Control(pDX, IDC_BUTTON2, m_Exit);
 }
 
 BEGIN_MESSAGE_MAP(CMFMarchTrainDlg, CDialogEx)
@@ -76,9 +79,14 @@ BEGIN_MESSAGE_MAP(CMFMarchTrainDlg, CDialogEx)
 	ON_WM_PAINT()
 	ON_WM_QUERYDRAGICON()
 	ON_WM_CLOSE()
-	ON_BN_CLICKED(IDCANCEL, &CMFMarchTrainDlg::OnBnClickedCancel)
-	ON_BN_CLICKED(IDC_BUTTON1, &CMFMarchTrainDlg::OnBnClickedButton1)
-	ON_BN_CLICKED(IDC_BUTTON2, &CMFMarchTrainDlg::OnBnClickedButton2)
+	//ON_BN_CLICKED(IDCANCEL, &CMFMarchTrainDlg::OnBnClickedCancel)
+	//ON_BN_CLICKED(IDC_BUTTON1, &CMFMarchTrainDlg::OnBnClickedButton1)
+	//ON_BN_CLICKED(IDC_BUTTON2, &CMFMarchTrainDlg::OnBnClickedButton2)
+	ON_BN_CLICKED(IDC_btnOpenCamera, &CMFMarchTrainDlg::OnBnClickedbtnopencamera)
+	ON_WM_TIMER()
+	ON_BN_CLICKED(IDC_btnCloseCamera, &CMFMarchTrainDlg::OnBnClickedbtnclosecamera)
+	ON_BN_CLICKED(ID_btnNextPage, &CMFMarchTrainDlg::OnBnClickedbtnnextpage)
+	//ON_BN_CLICKED(ID_btnVideo, &CMFMarchTrainDlg::OnBnClickedbtnvideo)
 END_MESSAGE_MAP()
 
 
@@ -115,14 +123,14 @@ BOOL CMFMarchTrainDlg::OnInitDialog()
 
 	// TODO:  在此添加额外的初始化代码
 
-	pwnd = GetDlgItem(IDC_ShowImage);
+	showImage_pwnd = GetDlgItem(IDC_ShowImage);
 	//pwnd->MoveWindow(35,30,352,288);  
-	pDC = pwnd->GetDC();
+	showImage_pDC = showImage_pwnd->GetDC();
 	//pDC =GetDC();  
-	hDC = pDC->GetSafeHdc();
-	pwnd->GetClientRect(&rect);
+	showImage_hDC = showImage_pDC->GetSafeHdc();
+	showImage_pwnd->GetClientRect(&showImage_clientRect);
 
-	m_Exit.EnableWindow(FALSE);
+	//m_Exit.EnableWindow(FALSE);
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
 }
 
@@ -196,35 +204,83 @@ void CMFMarchTrainDlg::OnClose()
 }
 
 
-void CMFMarchTrainDlg::OnBnClickedCancel()
+
+
+
+
+
+
+
+void CMFMarchTrainDlg::OnBnClickedbtnopencamera()
 {
 	// TODO:  在此添加控件通知处理程序代码
-	CDialogEx::OnCancel();
+	if (!camera_capture)
+	{
+		camera_capture = cvCaptureFromCAM(0);
+		//AfxMessageBox("OK");
+	}
+
+	if (!camera_capture)
+	{
+		AfxMessageBox(_T("无法打开摄像头"));
+		return;
+	}
+	cameraVideoWriter = cvCreateVideoWriter("MyVideo.avi", CV_FOURCC('x', 'v', 'I', 'D'), 25, cvSize(640, 480));
+	// 测试
+	IplImage* m_Frame;
+	m_Frame = cvQueryFrame(camera_capture);
+	CvvImage m_CvvImage;
+	m_CvvImage.CopyOf(m_Frame, 1);
+	if (true)
+	{
+		m_CvvImage.DrawToHDC(showImage_hDC, &showImage_clientRect);
+		//cvWaitKey(10);
+	}
+
+	// 设置计时器,每10ms触发一次事件
+	SetTimer(1, 10, NULL);
 }
 
 
-void CMFMarchTrainDlg::OnBnClickedButton1()
+void CMFMarchTrainDlg::OnTimer(UINT_PTR nIDEvent)
 {
-	// TODO:  在此添加控件通知处理程序代码
-	CString str;
-	m_Enable.GetWindowTextW(str);
-	if (str == "使能")
+	// TODO:  在此添加消息处理程序代码和/或调用默认值
+	IplImage* m_Frame;
+	m_Frame = cvQueryFrame(camera_capture);
+	CvvImage m_CvvImage;
+	m_CvvImage.CopyOf(m_Frame, 1);
+	if (true)
 	{
-		m_Exit.EnableWindow(TRUE);
-		m_Enable.SetWindowTextW(_T("使不能"));
-	}
-	else
-	{
-		m_Exit.EnableWindow(FALSE);
-		m_Enable.SetWindowTextW(_T("使能"));
+		m_CvvImage.DrawToHDC(showImage_hDC, &showImage_clientRect);
+		cvWriteFrame(cameraVideoWriter, m_Frame);
+		//cvWaitKey(10);
 	}
 
-
+	
+	CDialogEx::OnTimer(nIDEvent);
 }
 
 
-void CMFMarchTrainDlg::OnBnClickedButton2()
+void CMFMarchTrainDlg::OnBnClickedbtnclosecamera()
 {
 	// TODO:  在此添加控件通知处理程序代码
-	SendMessage(WM_CLOSE, 0, 0);
+	cvReleaseCapture(&camera_capture);
+	CDC MemDC;
+	CBitmap m_Bitmap1;
+	m_Bitmap1.LoadBitmap(IDB_BITMAP1);
+	MemDC.CreateCompatibleDC(NULL);
+	MemDC.SelectObject(&m_Bitmap1);
+	showImage_pDC->StretchBlt(showImage_clientRect.left, showImage_clientRect.top, showImage_clientRect.Width(), showImage_clientRect.Height(), &MemDC, 0, 0, 48, 48, SRCCOPY);
+}
+
+
+void CMFMarchTrainDlg::OnBnClickedbtnnextpage()
+{
+	// TODO:  在此添加控件通知处理程序代码
+}
+
+
+void CMFMarchTrainDlg::OnBnClickedbtnvideo()
+{
+	// TODO:  在此添加控件通知处理程序代码
 }

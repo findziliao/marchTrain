@@ -4,8 +4,10 @@
 
 #pragma once
 #include "afxwin.h"
-
-
+#include "cv.h"
+#include "highgui.h"
+#include "CvvImage.h"
+//#include "resource.h"
 // CMFMarchTrainDlg ¶Ô»°¿ò
 class CMFMarchTrainDlg : public CDialogEx
 {
@@ -32,9 +34,14 @@ protected:
 	DECLARE_MESSAGE_MAP()
 public:
 	afx_msg void OnClose();
-	afx_msg void OnBnClickedCancel();
-	CButton m_Enable;
-	CButton m_Exit;
-	afx_msg void OnBnClickedButton1();
-	afx_msg void OnBnClickedButton2();
+//	afx_msg void OnBnClickedCancel();
+	//CButton m_Enable;
+	//CButton m_Exit;
+//	afx_msg void OnBnClickedButton1();
+//	afx_msg void OnBnClickedButton2();
+	afx_msg void OnBnClickedbtnopencamera();
+	afx_msg void OnTimer(UINT_PTR nIDEvent);
+	afx_msg void OnBnClickedbtnclosecamera();
+	afx_msg void OnBnClickedbtnnextpage();
+	afx_msg void OnBnClickedbtnvideo();
 };
