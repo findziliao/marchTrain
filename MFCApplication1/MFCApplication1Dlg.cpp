@@ -6,6 +6,7 @@
 #include "MFCApplication1.h"
 #include "MFCApplication1Dlg.h"
 #include "afxdialogex.h"
+//#include "CvImgCtrl.h"
 //#include <opencv2/opencv.hpp>
 
 
@@ -22,6 +23,13 @@ HDC showImage_hDC;
 CWnd *showImage_pwnd;
 
 CvVideoWriter* cameraVideoWriter = 0;
+
+VideoCapture video_capture;
+//HBITMAP hbitmap;
+//CRect rect;
+//CStatic* pStc_PictureForVideo; //标识图像显示的Picture控件
+//CDC* pDC; //视频显示控件设备上下文
+//HDC hDC; //视频显示控件设备句柄
 
 // 用于应用程序“关于”菜单项的 CAboutDlg 对话框
 
@@ -41,6 +49,8 @@ protected:
 	DECLARE_MESSAGE_MAP()
 public:
 	afx_msg void OnClose();
+protected:
+//	CvImgCtrl m_show;
 };
 
 CAboutDlg::CAboutDlg() : CDialogEx(CAboutDlg::IDD)
@@ -72,6 +82,7 @@ void CMFMarchTrainDlg::DoDataExchange(CDataExchange* pDX)
 	CDialogEx::DoDataExchange(pDX);
 	//DDX_Control(pDX, IDC_BUTTON1, m_Enable);
 	//DDX_Control(pDX, IDC_BUTTON2, m_Exit);
+	DDX_Control(pDX, IDC_SLIDER_videoPlay, sliderVideoPlay);
 }
 
 BEGIN_MESSAGE_MAP(CMFMarchTrainDlg, CDialogEx)
@@ -87,6 +98,13 @@ BEGIN_MESSAGE_MAP(CMFMarchTrainDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_btnCloseCamera, &CMFMarchTrainDlg::OnBnClickedbtnclosecamera)
 	ON_BN_CLICKED(ID_btnNextPage, &CMFMarchTrainDlg::OnBnClickedbtnnextpage)
 	//ON_BN_CLICKED(ID_btnVideo, &CMFMarchTrainDlg::OnBnClickedbtnvideo)
+	ON_BN_CLICKED(IDC_btnOpenVideo, &CMFMarchTrainDlg::OnBnClickedbtnopenvideo)
+	ON_NOTIFY(NM_CUSTOMDRAW, IDC_SLIDER_videoPlay, &CMFMarchTrainDlg::OnNMCustomdrawSlidervideoplay)
+	ON_BN_CLICKED(IDC_btnPausePlay, &CMFMarchTrainDlg::OnBnClickedbtnpauseplay)
+	ON_BN_CLICKED(IDC_startPlay, &CMFMarchTrainDlg::OnBnClickedstartplay)
+	ON_BN_CLICKED(IDC_btnStopPlay, &CMFMarchTrainDlg::OnBnClickedbtnstopplay)
+//	ON_MESSAGE(MsgVideoFrame, &CMFMarchTrainDlg::OnFrame)
+ON_MESSAGE(MsgVideoFrame, &CMFMarchTrainDlg::OnFrame)
 END_MESSAGE_MAP()
 
 
@@ -123,14 +141,28 @@ BOOL CMFMarchTrainDlg::OnInitDialog()
 
 	// TODO:  在此添加额外的初始化代码
 
-	showImage_pwnd = GetDlgItem(IDC_ShowImage);
-	//pwnd->MoveWindow(35,30,352,288);  
-	showImage_pDC = showImage_pwnd->GetDC();
-	//pDC =GetDC();  
-	showImage_hDC = showImage_pDC->GetSafeHdc();
-	showImage_pwnd->GetClientRect(&showImage_clientRect);
+	//showImage_pwnd = GetDlgItem(IDC_ShowImage);	
+	//showImage_pDC = showImage_pwnd->GetDC();	  
+	//showImage_hDC = showImage_pDC->GetSafeHdc();
+	//showImage_pwnd->GetClientRect(&showImage_clientRect);
 
+	//pStc_PictureForVideo = (CStatic *)GetDlgItem(IDC_ShowImage);//IDC_VIEW为Picture控件ID
+	//pStc_PictureForVideo->GetClientRect(&showImage_clientRect);//Picture的大小传给矩形rect
+	//pDC = pStc->GetDC(); //得到Picture控件设备上下文
+	//hDC = pDC->GetSafeHdc(); //得到Picture控件设备上下文的句柄 
+	//hbitmap = ::LoadBitmap(AfxGetApp()->m_hInstance, MAKEINTRESOURCE(IDB_BITMAP1));//加载位图资源
+	//pStc_PictureForVideo->ModifyStyle(1, SS_BITMAP);//修改控件的属性
+	//pStc_PictureForVideo->SetBitmap(hbitmap);//显示位图
+	/*CDC MemDC;
+	CBitmap m_Bitmap1;
+	m_Bitmap1.LoadBitmap(IDB_BITMAP1);
+	MemDC.CreateCompatibleDC(NULL);
+	MemDC.SelectObject(&m_Bitmap1);
+	showImage_pDC->StretchBlt(showImage_clientRect.left, showImage_clientRect.top, showImage_clientRect.Width(), showImage_clientRect.Height(), &MemDC, 0, 0, 48, 48, SRCCOPY);
+	*/
 	//m_Exit.EnableWindow(FALSE);
+	//链接到控件
+	m_show.linkDlgItem(IDC_ShowImage, this);
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
 }
 
@@ -200,6 +232,7 @@ void CMFMarchTrainDlg::OnClose()
 	{
 		return;
 	}
+	cvReleaseCapture(&camera_capture);
 	CDialogEx::OnClose();
 }
 
@@ -214,47 +247,81 @@ void CMFMarchTrainDlg::OnClose()
 void CMFMarchTrainDlg::OnBnClickedbtnopencamera()
 {
 	// TODO:  在此添加控件通知处理程序代码
-	if (!camera_capture)
-	{
-		camera_capture = cvCaptureFromCAM(0);
-		//AfxMessageBox("OK");
-	}
+	m_show.openVideo(0);
+	//设置为居中显示
+	m_show.setResizeType(CvImgCtrl::ResizeType_CenterResize);
+	//if (!camera_capture)
+	//{
+	//	camera_capture = cvCaptureFromCAM(0);
+	//	//AfxMessageBox("OK");
+	//}
 
-	if (!camera_capture)
-	{
-		AfxMessageBox(_T("无法打开摄像头"));
-		return;
-	}
-	cameraVideoWriter = cvCreateVideoWriter("MyVideo.avi", CV_FOURCC('x', 'v', 'I', 'D'), 25, cvSize(640, 480));
-	// 测试
-	IplImage* m_Frame;
-	m_Frame = cvQueryFrame(camera_capture);
-	CvvImage m_CvvImage;
-	m_CvvImage.CopyOf(m_Frame, 1);
-	if (true)
-	{
-		m_CvvImage.DrawToHDC(showImage_hDC, &showImage_clientRect);
-		//cvWaitKey(10);
-	}
+	//if (!camera_capture)
+	//{
+	//	AfxMessageBox(_T("无法打开摄像头"));
+	//	return;
+	//}
+	//cameraVideoWriter = cvCreateVideoWriter("MyVideo.avi", CV_FOURCC('x', 'v', 'I', 'D'), 25, cvSize(640, 480));
+	//// 测试
+	//IplImage* m_Frame;
+	//m_Frame = cvQueryFrame(camera_capture);
+	//CvvImage m_CvvImage;
+	//m_CvvImage.CopyOf(m_Frame, 1);
+	//if (true)
+	//{
+	//	m_CvvImage.DrawToHDC(showImage_hDC, &showImage_clientRect);
+	//	//cvWaitKey(10);
+	//}
 
-	// 设置计时器,每10ms触发一次事件
-	SetTimer(1, 10, NULL);
+	//// 设置计时器,每10ms触发一次事件
+	//SetTimer(1, 10, NULL);
+	
 }
 
 
 void CMFMarchTrainDlg::OnTimer(UINT_PTR nIDEvent)
 {
 	// TODO:  在此添加消息处理程序代码和/或调用默认值
-	IplImage* m_Frame;
-	m_Frame = cvQueryFrame(camera_capture);
-	CvvImage m_CvvImage;
-	m_CvvImage.CopyOf(m_Frame, 1);
-	if (true)
-	{
-		m_CvvImage.DrawToHDC(showImage_hDC, &showImage_clientRect);
-		cvWriteFrame(cameraVideoWriter, m_Frame);
-		//cvWaitKey(10);
-	}
+	
+
+	//switch (nIDEvent)//nIDEvent 为定时器事件ID，1，2，3
+	//{
+	//case 1:
+	//	{
+	//		IplImage* m_Frame;
+	//		m_Frame = cvQueryFrame(camera_capture);
+	//		CvvImage m_CvvImage;
+	//		m_CvvImage.CopyOf(m_Frame, 1);
+	//		if (true)
+	//		{
+	//			m_CvvImage.DrawToHDC(showImage_hDC, &showImage_clientRect);
+	//			cvWriteFrame(cameraVideoWriter, m_Frame);
+	//			//cvWaitKey(10);
+	//		}
+	//	}
+	//	break;
+	//case 2:
+	//	{		
+	//		Mat img;
+	//		video_capture >> img;  //取出一帧图像
+	//		if (img.empty())
+	//		{
+	//			KillTimer(2);
+	//			video_capture.release();
+	//			AfxMessageBox(_T("视频结束"));
+	//			//video_capture.release();
+	//		}
+	//		else
+	//		{
+	//			CvvImage m_CvvImage;
+	//			IplImage frame(img);   //Mat 转IplImage
+	//			m_CvvImage.CopyOf(&frame, 1); //复制该帧图像   
+	//			m_CvvImage.DrawToHDC(showImage_hDC, &showImage_clientRect); //显示到设备的矩形框内
+	//			sliderVideoPlay.SetPos((int)video_capture.get(CV_CAP_PROP_POS_FRAMES));//设置视频的位置
+	//		}						  
+	//	}
+	//	break;
+	//}
 
 	
 	CDialogEx::OnTimer(nIDEvent);
@@ -264,13 +331,15 @@ void CMFMarchTrainDlg::OnTimer(UINT_PTR nIDEvent)
 void CMFMarchTrainDlg::OnBnClickedbtnclosecamera()
 {
 	// TODO:  在此添加控件通知处理程序代码
+	/*KillTimer(1);
 	cvReleaseCapture(&camera_capture);
 	CDC MemDC;
 	CBitmap m_Bitmap1;
 	m_Bitmap1.LoadBitmap(IDB_BITMAP1);
 	MemDC.CreateCompatibleDC(NULL);
 	MemDC.SelectObject(&m_Bitmap1);
-	showImage_pDC->StretchBlt(showImage_clientRect.left, showImage_clientRect.top, showImage_clientRect.Width(), showImage_clientRect.Height(), &MemDC, 0, 0, 48, 48, SRCCOPY);
+	showImage_pDC->StretchBlt(showImage_clientRect.left, showImage_clientRect.top, showImage_clientRect.Width(), showImage_clientRect.Height(), &MemDC, 0, 0, 48, 48, SRCCOPY);*/
+	m_show.closeVideo();
 }
 
 
@@ -283,4 +352,103 @@ void CMFMarchTrainDlg::OnBnClickedbtnnextpage()
 void CMFMarchTrainDlg::OnBnClickedbtnvideo()
 {
 	// TODO:  在此添加控件通知处理程序代码
+}
+
+
+void CMFMarchTrainDlg::OnBnClickedbtnopenvideo()
+{
+	// TODO:  在此添加控件通知处理程序代码
+	//CString caption;
+	//GetDlgItemText(IDC_btnOpenVideo, caption);
+	//if (caption == _T("关闭视频"))    //关闭视频按钮
+	//{
+	//	KillTimer(2);
+	//	video_capture.release();
+	//	SetDlgItemText(IDC_btnOpenVideo, _T("打开视频"));
+	//	((CSliderCtrl *)GetDlgItem(IDC_SLIDER_videoPlay))->EnableWindow(FALSE);  //滑动条失效
+	//	((CSliderCtrl *)GetDlgItem(IDC_SLIDER_videoPlay))->SetPos(0); //设置滑动条位置
+	//	//pStc_PictureForVideo->SetBitmap(hbitmap); //恢复位图资源
+	//	return;
+	//}
+
+
+	//打开视频,弹出通用对话框,选择要播放的视频文件
+	string _Path;
+	CFileDialog Openfiledlg(TRUE, NULL, NULL, OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, _T("Video Files (*.rmvb;*.avi)|*.rmvb;*.avi||"));
+	if (Openfiledlg.DoModal() == IDOK) //弹出模态对话框
+	{
+		//CString类型转换为string类型
+		CString  filepath;
+		filepath = Openfiledlg.GetPathName();
+		CStringA temp(filepath.GetBuffer(0));
+		filepath.ReleaseBuffer();
+		_Path = temp.GetBuffer(0);
+		temp.ReleaseBuffer();
+	}
+	else
+		return;
+
+	m_show.openVideo(_Path.c_str());
+
+	m_show.setWaitTime((int)(1000 * 1.0 / m_show.getVideoCapture()->get(CV_CAP_PROP_FPS)));
+	//设置为居中显示
+	m_show.setResizeType(CvImgCtrl::ResizeType_CenterResize);
+	
+	if (!m_show.getVideoCapture()->isOpened())
+	{
+		AfxMessageBox(_T("无法打开视频！"));
+		return;
+	}
+	else
+	{
+		((CSliderCtrl *)GetDlgItem(IDC_SLIDER_videoPlay))->EnableWindow(TRUE);  //激活滑动条
+		sliderVideoPlay.SetRange(0, (int)m_show.getVideoCapture()->get(CV_CAP_PROP_FRAME_COUNT));//设置滑动条的范围,为视频的总帧数
+		
+	}
+	
+}
+
+
+void CMFMarchTrainDlg::OnNMCustomdrawSlidervideoplay(NMHDR *pNMHDR, LRESULT *pResult)
+{
+	LPNMCUSTOMDRAW pNMCD = reinterpret_cast<LPNMCUSTOMDRAW>(pNMHDR);
+	// TODO:  在此添加控件通知处理程序代码
+	m_show.getVideoCapture()->set(CV_CAP_PROP_POS_FRAMES, sliderVideoPlay.GetPos());  //设置视频的起始帧
+	*pResult = 0;
+}
+
+
+void CMFMarchTrainDlg::OnBnClickedbtnpauseplay()
+{
+	// TODO:  在此添加控件通知处理程序代码
+	m_show.pauseVideo();
+}
+
+
+void CMFMarchTrainDlg::OnBnClickedstartplay()
+{
+	// TODO:  在此添加控件通知处理程序代码
+	m_show.resumeVideo();
+}
+
+
+void CMFMarchTrainDlg::OnBnClickedbtnstopplay()
+{
+	// TODO:  在此添加控件通知处理程序代码
+	m_show.closeVideo();
+	((CSliderCtrl *)GetDlgItem(IDC_SLIDER_videoPlay))->EnableWindow(FALSE);  //滑动条失效
+	((CSliderCtrl *)GetDlgItem(IDC_SLIDER_videoPlay))->SetPos(0); //设置滑动条位置
+}
+
+//处理每一帧的视频
+
+
+afx_msg LRESULT CMFMarchTrainDlg::OnFrame(WPARAM wParam, LPARAM lParam)
+{
+	//Mat frame((IplImage*)lParam, false);
+	//这里仅仅做了下翻转
+	//flip(frame, frame, -1);
+	sliderVideoPlay.SetPos((int)m_show.getVideoCapture()->get(CV_CAP_PROP_POS_FRAMES));//设置视频的位置
+
+	return 0;
 }

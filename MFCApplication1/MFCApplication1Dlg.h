@@ -7,6 +7,8 @@
 #include "cv.h"
 #include "highgui.h"
 #include "CvvImage.h"
+#include "afxcmn.h"
+#include "CvImgCtrl.h"
 //#include "resource.h"
 // CMFMarchTrainDlg 对话框
 class CMFMarchTrainDlg : public CDialogEx
@@ -25,7 +27,7 @@ public:
 // 实现
 protected:
 	HICON m_hIcon;
-
+	CvImgCtrl m_show;
 	// 生成的消息映射函数
 	virtual BOOL OnInitDialog();
 	afx_msg void OnSysCommand(UINT nID, LPARAM lParam);
@@ -44,4 +46,17 @@ public:
 	afx_msg void OnBnClickedbtnclosecamera();
 	afx_msg void OnBnClickedbtnnextpage();
 	afx_msg void OnBnClickedbtnvideo();
+	// 播放视频滑动条
+	CSliderCtrl sliderVideoPlay;
+	afx_msg void OnBnClickedbtnopenvideo();
+	afx_msg void OnNMCustomdrawSlidervideoplay(NMHDR *pNMHDR, LRESULT *pResult);
+
+	
+	afx_msg void OnBnClickedbtnpauseplay();
+	afx_msg void OnBnClickedstartplay();
+	afx_msg void OnBnClickedbtnstopplay();
+	
+protected:
+
+	afx_msg LRESULT OnFrame(WPARAM wParam, LPARAM lParam);
 };
