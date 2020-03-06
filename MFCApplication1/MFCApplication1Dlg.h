@@ -9,6 +9,12 @@
 #include "CvvImage.h"
 #include "afxcmn.h"
 #include "CvImgCtrl.h"
+#include <stdio.h>
+//#include <iostream>
+//#include <iomanip>
+//#include <sstream>
+#include <fstream>
+using namespace std;
 //#include "resource.h"
 // CMFMarchTrainDlg 对话框
 class CMFMarchTrainDlg : public CDialogEx
@@ -47,9 +53,9 @@ public:
 	afx_msg void OnBnClickedbtnnextpage();
 	afx_msg void OnBnClickedbtnvideo();
 	// 播放视频滑动条
-	CSliderCtrl sliderVideoPlay;
+//	CSliderCtrl sliderVideoPlay;
 	afx_msg void OnBnClickedbtnopenvideo();
-	afx_msg void OnNMCustomdrawSlidervideoplay(NMHDR *pNMHDR, LRESULT *pResult);
+//	afx_msg void OnNMCustomdrawSlidervideoplay(NMHDR *pNMHDR, LRESULT *pResult);
 
 	
 	afx_msg void OnBnClickedbtnpauseplay();
@@ -59,4 +65,20 @@ public:
 protected:
 
 	afx_msg LRESULT OnFrame(WPARAM wParam, LPARAM lParam);
+public:
+	// 视频播放控件
+	CSliderCtrl sliderVideo;
+	afx_msg void OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar);
+	afx_msg void OnBnClickedbtnstartrecord();
+	afx_msg void OnBnClickedbtnstoprecord();
+	string cameraVideoSavePath;
+
+	afx_msg void OnBnClickedbtnvideoanalyse();
+	// 保存视频处理数据
+	ofstream coin_rate_file;
+	// 【利用图像G像素值-R像素值得到前景图】	
+	void extract(const Mat& std, Mat& outing);
+	// 输入二值图，输出将二值的白色变成绿色
+	void dif_imge(const Mat& std, const Mat& test, Mat& outimg, const Mat& input, float& area, float& body_area);
+	void save_coincidence(int Num_frame, float coincidence_rate, int middle_dot_width);
 };

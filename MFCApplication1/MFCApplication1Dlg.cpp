@@ -22,10 +22,13 @@ CDC *showImage_pDC;
 HDC showImage_hDC;
 CWnd *showImage_pwnd;
 
-CvVideoWriter* cameraVideoWriter = 0;
-
-VideoCapture video_capture;
-//HBITMAP hbitmap;
+//CvVideoWriter* cameraVideoWriter = 0;
+VideoWriter cameraVideoWriter;
+//进度条
+//int   G_slider_position = 0;
+//CvCapture*    G_capture = NULL;
+//cv::VideoCapture*    G_capture   =  NULL;
+////HBITMAP hbitmap;
 //CRect rect;
 //CStatic* pStc_PictureForVideo; //标识图像显示的Picture控件
 //CDC* pDC; //视频显示控件设备上下文
@@ -51,6 +54,8 @@ public:
 	afx_msg void OnClose();
 protected:
 //	CvImgCtrl m_show;
+public:
+//	afx_msg void OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar);
 };
 
 CAboutDlg::CAboutDlg() : CDialogEx(CAboutDlg::IDD)
@@ -64,6 +69,7 @@ void CAboutDlg::DoDataExchange(CDataExchange* pDX)
 
 BEGIN_MESSAGE_MAP(CAboutDlg, CDialogEx)
 	ON_WM_CLOSE()
+//	ON_WM_HSCROLL()
 END_MESSAGE_MAP()
 
 
@@ -82,7 +88,8 @@ void CMFMarchTrainDlg::DoDataExchange(CDataExchange* pDX)
 	CDialogEx::DoDataExchange(pDX);
 	//DDX_Control(pDX, IDC_BUTTON1, m_Enable);
 	//DDX_Control(pDX, IDC_BUTTON2, m_Exit);
-	DDX_Control(pDX, IDC_SLIDER_videoPlay, sliderVideoPlay);
+	//DDX_Control(pDX, IDC_SLIDER_videoPlay, sliderVideoPlay);
+	DDX_Control(pDX, IDC_SLIDERVideo, sliderVideo);
 }
 
 BEGIN_MESSAGE_MAP(CMFMarchTrainDlg, CDialogEx)
@@ -99,12 +106,16 @@ BEGIN_MESSAGE_MAP(CMFMarchTrainDlg, CDialogEx)
 	ON_BN_CLICKED(ID_btnNextPage, &CMFMarchTrainDlg::OnBnClickedbtnnextpage)
 	//ON_BN_CLICKED(ID_btnVideo, &CMFMarchTrainDlg::OnBnClickedbtnvideo)
 	ON_BN_CLICKED(IDC_btnOpenVideo, &CMFMarchTrainDlg::OnBnClickedbtnopenvideo)
-	ON_NOTIFY(NM_CUSTOMDRAW, IDC_SLIDER_videoPlay, &CMFMarchTrainDlg::OnNMCustomdrawSlidervideoplay)
+//	ON_NOTIFY(NM_CUSTOMDRAW, IDC_SLIDER_videoPlay, &CMFMarchTrainDlg::OnNMCustomdrawSlidervideoplay)
 	ON_BN_CLICKED(IDC_btnPausePlay, &CMFMarchTrainDlg::OnBnClickedbtnpauseplay)
 	ON_BN_CLICKED(IDC_startPlay, &CMFMarchTrainDlg::OnBnClickedstartplay)
 	ON_BN_CLICKED(IDC_btnStopPlay, &CMFMarchTrainDlg::OnBnClickedbtnstopplay)
 //	ON_MESSAGE(MsgVideoFrame, &CMFMarchTrainDlg::OnFrame)
-ON_MESSAGE(MsgVideoFrame, &CMFMarchTrainDlg::OnFrame)
+	ON_MESSAGE(MsgVideoFrame, &CMFMarchTrainDlg::OnFrame)
+	ON_WM_HSCROLL()
+	ON_BN_CLICKED(IDC_btnStartRecord, &CMFMarchTrainDlg::OnBnClickedbtnstartrecord)
+	ON_BN_CLICKED(IDC_btnStopRecord, &CMFMarchTrainDlg::OnBnClickedbtnstoprecord)
+	ON_BN_CLICKED(ID_btnVideoAnalyse, &CMFMarchTrainDlg::OnBnClickedbtnvideoanalyse)
 END_MESSAGE_MAP()
 
 
@@ -162,6 +173,14 @@ BOOL CMFMarchTrainDlg::OnInitDialog()
 	*/
 	//m_Exit.EnableWindow(FALSE);
 	//链接到控件
+	//绑定窗口
+	//CWnd  *pWnd1 = GetDlgItem(IDC_ShowImage);//CWnd是MFC窗口类的基类,提供了微软基础类库中所有窗口类的基本功能。
+	//pWnd1->GetClientRect(&showImage_clientRect);//GetClientRect为获得控件相自身的坐标大小
+	//namedWindow("VideoBar", WINDOW_AUTOSIZE);//设置窗口名
+	//HWND hWndl = (HWND)cvGetWindowHandle("VideoBar");//hWnd 表示窗口句柄,获取窗口句柄
+	//HWND hParent1 = ::GetParent(hWndl);//GetParent函数一个指定子窗口的父窗口句柄
+	//::SetParent(hWndl, GetDlgItem(IDC_ShowImage)->m_hWnd);
+	//::ShowWindow(hParent1, SW_HIDE);//ShowWindow指定窗口中显示
 	m_show.linkDlgItem(IDC_ShowImage, this);
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
 }
@@ -256,12 +275,6 @@ void CMFMarchTrainDlg::OnBnClickedbtnopencamera()
 	//	//AfxMessageBox("OK");
 	//}
 
-	//if (!camera_capture)
-	//{
-	//	AfxMessageBox(_T("无法打开摄像头"));
-	//	return;
-	//}
-	//cameraVideoWriter = cvCreateVideoWriter("MyVideo.avi", CV_FOURCC('x', 'v', 'I', 'D'), 25, cvSize(640, 480));
 	//// 测试
 	//IplImage* m_Frame;
 	//m_Frame = cvQueryFrame(camera_capture);
@@ -339,6 +352,7 @@ void CMFMarchTrainDlg::OnBnClickedbtnclosecamera()
 	MemDC.CreateCompatibleDC(NULL);
 	MemDC.SelectObject(&m_Bitmap1);
 	showImage_pDC->StretchBlt(showImage_clientRect.left, showImage_clientRect.top, showImage_clientRect.Width(), showImage_clientRect.Height(), &MemDC, 0, 0, 48, 48, SRCCOPY);*/
+	//cvReleaseVideoWriter(&cameraVideoWriter);
 	m_show.closeVideo();
 }
 
@@ -388,11 +402,7 @@ void CMFMarchTrainDlg::OnBnClickedbtnopenvideo()
 	else
 		return;
 
-	m_show.openVideo(_Path.c_str());
-
-	m_show.setWaitTime((int)(1000 * 1.0 / m_show.getVideoCapture()->get(CV_CAP_PROP_FPS)));
-	//设置为居中显示
-	m_show.setResizeType(CvImgCtrl::ResizeType_CenterResize);
+	m_show.openVideo(_Path.c_str());	
 	
 	if (!m_show.getVideoCapture()->isOpened())
 	{
@@ -401,21 +411,39 @@ void CMFMarchTrainDlg::OnBnClickedbtnopenvideo()
 	}
 	else
 	{
-		((CSliderCtrl *)GetDlgItem(IDC_SLIDER_videoPlay))->EnableWindow(TRUE);  //激活滑动条
-		sliderVideoPlay.SetRange(0, (int)m_show.getVideoCapture()->get(CV_CAP_PROP_FRAME_COUNT));//设置滑动条的范围,为视频的总帧数
+			//获取视频的帧数
+		Mat img;
+		int frameCount = 0;
+
+		do
+		{
+			m_show.getVideoCapture()->read(img);
+			frameCount++;
+		} while (!img.empty());
+		((CSliderCtrl *)GetDlgItem(IDC_SLIDERVideo))->EnableWindow(TRUE);  //激活滑动条
+		int sliderRange = frameCount;
+		//int sliderRange = 100;
+		sliderVideo.SetRange(0, sliderRange);//设置滑动条的范围,为视频的总帧数
+		m_show.closeVideo();
+		m_show.openVideo(_Path.c_str());  //重新打开视频
+		//设置显示帧率
+		m_show.setWaitTime((int)(1000 * 1.0 / m_show.getVideoCapture()->get(CV_CAP_PROP_FPS)));
+		//设置为居中显示
+		m_show.setResizeType(CvImgCtrl::ResizeType_CenterResize);
+		
 		
 	}
 	
 }
 
 
-void CMFMarchTrainDlg::OnNMCustomdrawSlidervideoplay(NMHDR *pNMHDR, LRESULT *pResult)
-{
-	LPNMCUSTOMDRAW pNMCD = reinterpret_cast<LPNMCUSTOMDRAW>(pNMHDR);
-	// TODO:  在此添加控件通知处理程序代码
-	m_show.getVideoCapture()->set(CV_CAP_PROP_POS_FRAMES, sliderVideoPlay.GetPos());  //设置视频的起始帧
-	*pResult = 0;
-}
+//void CMFMarchTrainDlg::OnNMCustomdrawSlidervideoplay(NMHDR *pNMHDR, LRESULT *pResult)
+//{
+//	LPNMCUSTOMDRAW pNMCD = reinterpret_cast<LPNMCUSTOMDRAW>(pNMHDR);
+//	// TODO:  在此添加控件通知处理程序代码
+//	//m_show.getVideoCapture()->set(CV_CAP_PROP_POS_FRAMES, sliderVideoPlay.GetPos());  //设置视频的起始帧
+//	*pResult = 0;
+//}
 
 
 void CMFMarchTrainDlg::OnBnClickedbtnpauseplay()
@@ -436,8 +464,8 @@ void CMFMarchTrainDlg::OnBnClickedbtnstopplay()
 {
 	// TODO:  在此添加控件通知处理程序代码
 	m_show.closeVideo();
-	((CSliderCtrl *)GetDlgItem(IDC_SLIDER_videoPlay))->EnableWindow(FALSE);  //滑动条失效
-	((CSliderCtrl *)GetDlgItem(IDC_SLIDER_videoPlay))->SetPos(0); //设置滑动条位置
+	//((CSliderCtrl *)GetDlgItem(IDC_SLIDER_videoPlay))->EnableWindow(FALSE);  //滑动条失效
+	//((CSliderCtrl *)GetDlgItem(IDC_SLIDER_videoPlay))->SetPos(0); //设置滑动条位置
 }
 
 //处理每一帧的视频
@@ -448,7 +476,170 @@ afx_msg LRESULT CMFMarchTrainDlg::OnFrame(WPARAM wParam, LPARAM lParam)
 	//Mat frame((IplImage*)lParam, false);
 	//这里仅仅做了下翻转
 	//flip(frame, frame, -1);
-	sliderVideoPlay.SetPos((int)m_show.getVideoCapture()->get(CV_CAP_PROP_POS_FRAMES));//设置视频的位置
-
+	sliderVideo.SetPos((int)m_show.getVideoCapture()->get(CV_CAP_PROP_POS_FRAMES));//设置视频的位置
+	if (cameraVideoWriter.isOpened())
+	{
+		Mat frame((IplImage*)lParam, false);
+		//cvWriteFrame(cameraVideoWriter, m_Frame);
+		cameraVideoWriter.write(frame);
+		//cvWaitKey(10);
+	}
 	return 0;
+}
+
+
+//void CAboutDlg::OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar)
+//{
+//	// TODO:  在此添加消息处理程序代码和/或调用默认值
+//	
+//	CDialogEx::OnHScroll(nSBCode, nPos, pScrollBar);
+//}
+
+
+void CMFMarchTrainDlg::OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar)
+{
+	// TODO:  在此添加消息处理程序代码和/或调用默认值
+	//m_show.pauseVideo();
+	//CString strTest;
+	//strTest.Format(_T("%d"), sliderVideo.GetPos());
+	//AfxMessageBox(_T("跳转到帧数：") + strTest);
+	m_show.getVideoCapture()->set(CV_CAP_PROP_POS_FRAMES, sliderVideo.GetPos());
+	//Mat img;
+	//m_show.getVideoCapture()->read(img);  //取出一帧图像
+	//if (img.empty())
+	//{
+	//	KillTimer(2);
+	//	m_show.getVideoCapture()->release();
+	//	AfxMessageBox(_T("视频结束"));
+	//	//video_capture.release();
+	//}
+	//else
+	//{
+	//	CvvImage m_CvvImage;
+	//	IplImage frame(img);   //Mat 转IplImage
+	//	m_CvvImage.CopyOf(&frame, 1); //复制该帧图像   
+	//	m_CvvImage.DrawToHDC(showImage_hDC, &showImage_clientRect); //显示到设备的矩形框内		
+	//}	
+	CDialogEx::OnHScroll(nSBCode, nPos, pScrollBar);
+}
+
+
+void CMFMarchTrainDlg::OnBnClickedbtnstartrecord()
+{
+	// TODO:  在此添加控件通知处理程序代码
+	if (!m_show.getVideoCapture()->isOpened())
+	{
+		AfxMessageBox(_T("摄像头没打开！"));
+		return;
+	}
+	//打开视频,弹出通用对话框,选择要播放的视频文件
+
+	CFileDialog saveFiledlg(FALSE, NULL, NULL, OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, _T("Video Files (*.rmvb;*.avi)|*.rmvb;*.avi||"));
+	if (saveFiledlg.DoModal() == IDOK) //弹出模态对话框
+	{
+		//CString类型转换为string类型
+		CString  filepath;
+		filepath = saveFiledlg.GetPathName();
+		CStringA temp(filepath.GetBuffer(0));
+		filepath.ReleaseBuffer();
+		cameraVideoSavePath = temp.GetBuffer(0);
+		temp.ReleaseBuffer();
+	}
+	else
+		return;
+
+	cameraVideoWriter = VideoWriter(cameraVideoSavePath.c_str(), CV_FOURCC('x', 'v', 'I', 'D'), 25, cvSize(640, 480));
+
+}
+
+
+void CMFMarchTrainDlg::OnBnClickedbtnstoprecord()
+{
+	// TODO:  在此添加控件通知处理程序代码
+	//cvReleaseVideoWriter(&cameraVideoWriter);
+	cameraVideoWriter.release();
+}
+
+
+void CMFMarchTrainDlg::OnBnClickedbtnvideoanalyse()
+{
+	// TODO:  在此添加控件通知处理程序代码
+
+}
+
+
+
+
+// 输入二值图，输出将二值的白色变成绿色
+//Mat CMFMarchTrainDlg::convertTo3Channels(const Mat& binImg)
+//{
+//	return Mat();
+//}
+
+
+// 【利用图像G像素值-R像素值得到前景图】
+void CMFMarchTrainDlg::extract(const Mat& std, Mat& outing)
+{
+	int nr = std.rows;
+	int nc = std.cols;
+	outing.create(std.size(), std.type());
+	for (int i = 0; i < 465; ++i)
+	{
+		const Vec3b * std_p = std.ptr<Vec3b>(i);
+		Vec3b * out = outing.ptr<Vec3b>(i);
+
+		for (int j = 0; j < nc; ++j)
+		{
+			float dif = std_p[j][1] - std_p[j][2];
+			if (dif > 70)
+				out[j][0] = out[j][1] = out[j][2] = 0;
+			else
+				out[j][0] = out[j][1] = out[j][2] = 255;
+		}
+
+	}
+}
+
+
+// 输入二值图，输出将二值的白色变成绿色
+void CMFMarchTrainDlg::dif_imge(const Mat& std, const Mat& test, Mat& outimg, const Mat& input, float& area, float& body_area)
+{
+	int nr = std.rows;
+	int nc = std.cols;
+	input.copyTo(outimg);
+	for (int i = 0; i < nr; ++i)
+	{
+		const uchar *s = std.ptr<uchar>(i);     //获取std第i行第一个像素的指针
+		const uchar *t = test.ptr<uchar>(i);    //获取test第i行第一个像素的指针
+		Vec3b* out = outimg.ptr<Vec3b>(i);
+
+		for (int j = 0; j < nc; ++j)
+		{
+			if (s[j] == 0 && t[j] == 255)
+			{
+				out[j][0] = 0;
+				out[j][1] = 255;
+				out[j][2] = 0;
+			}
+			//重合面积,在二值图情况下，当std和test在某点上的像素值都是255时，说明在这点上两个图片是重合的
+
+			if (t[j] == 255)
+			{
+				++body_area;		//test全身的面积算一遍
+				if (s[j] == 255)
+				{
+					++area;			//全身重合的面积
+				}
+			}
+
+		}
+
+	}
+}
+
+
+void CMFMarchTrainDlg::save_coincidence(int Num_frame, float coincidence_rate, int middle_dot_width)
+{
+	coin_rate_file << Num_frame << " " << coincidence_rate << " " << middle_dot_width << " ";
+	coin_rate_file << "\n";
 }
