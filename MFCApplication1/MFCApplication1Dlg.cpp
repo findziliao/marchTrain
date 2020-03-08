@@ -6,6 +6,7 @@
 #include "MFCApplication1.h"
 #include "MFCApplication1Dlg.h"
 #include "afxdialogex.h"
+#include "dlgPage2.h"
 //#include "CvImgCtrl.h"
 //#include <opencv2/opencv.hpp>
 #include <stdio.h>
@@ -397,6 +398,10 @@ void CMFMarchTrainDlg::OnBnClickedbtnclosecamera()
 void CMFMarchTrainDlg::OnBnClickedbtnnextpage()
 {
 	// TODO:  在此添加控件通知处理程序代码
+	this->ShowWindow(SW_HIDE);
+	dlgPage2 dlgShowPage2;
+	dlgShowPage2.DoModal();
+	this->ShowWindow(SW_SHOW);
 }
 
 
