@@ -1,5 +1,6 @@
 #pragma once
-
+#include "CvImgCtrl.h"
+using namespace std;
 
 // dlgPage2 对话框
 
@@ -20,4 +21,15 @@ protected:
 	DECLARE_MESSAGE_MAP()
 public:
 	afx_msg void OnBnClickedbtnprepage2();
+	afx_msg void OnBnClickedbtnclose();
+	CvImgCtrl m_showPritive; //显示原始测试视频
+	CvImgCtrl m_showROI;   //显示提取的前景视频
+	CvImgCtrl m_showOverlay;    //显示叠加视频
+	virtual BOOL OnInitDialog();
+	string primitiveVideoFile;
+	string ROIVideoFile;
+	string overlayVideoFile;
+	// 打开3个视频
+	void open3Video();
+	afx_msg void OnBnClickedbtnopen3video();
 };

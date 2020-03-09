@@ -49,16 +49,17 @@ VideoWriter cameraVideoWriter;
 
 //原来的视频对比处理程序函数
 
-string videoFilename_std = "std_ROI_J0101.avi";
-string	videoFilename_test = cameraVideoSavePath;
-string	videoFilename_color_std = "std_color_ROI_J0101.avi";
+string videoFilename_std ;
+string	videoFilename_test ;
+string	videoFilename_color_std ;
 VideoCapture capture_std;
 VideoCapture capture_color_std;
 VideoCapture capture_test;			//新兵的视频，从录入的视频中读取
 
-VideoWriter testVideoWrite;
-VideoWriter contrastVideoWriter;
-
+VideoWriter testVideoWrite;//输出提取前景视频
+VideoWriter contrastVideoWriter;//输出叠加视频
+string outVideo;		//输出叠加视频文件名
+string outVideo_test;  //输出提取前景视频文件名
 ofstream coin_rate_file;
 Mat Body_center = Mat(480, 640, CV_8UC3);		//用于绘制外接框中心点的运动范围
 Mat s_test;		//计算胸点像素值，承载图片用的矩阵变量
@@ -93,6 +94,7 @@ protected:
 //	CvImgCtrl m_show;
 public:
 //	afx_msg void OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar);
+//	virtual BOOL OnInitDialog();
 };
 
 CAboutDlg::CAboutDlg() : CDialogEx(CAboutDlg::IDD)
@@ -399,8 +401,20 @@ void CMFMarchTrainDlg::OnBnClickedbtnnextpage()
 {
 	// TODO:  在此添加控件通知处理程序代码
 	this->ShowWindow(SW_HIDE);
-	dlgPage2 dlgShowPage2;
+	dlgPage2 dlgShowPage2;	
+	if (videoFilename_test.empty() || outVideo.empty() || outVideo_test.empty())
+	{
+		AfxMessageBox(_T("请先执行视频处理步骤！"));
+		return;
+	}
+	
+
+	dlgShowPage2.primitiveVideoFile = videoFilename_test;
+	dlgShowPage2.ROIVideoFile = outVideo_test;
+	dlgShowPage2.overlayVideoFile = outVideo;
+	
 	dlgShowPage2.DoModal();
+	//dlgShowPage2.open3Video();
 	this->ShowWindow(SW_SHOW);
 }
 
@@ -623,6 +637,44 @@ void CMFMarchTrainDlg::OnBnClickedbtnvideoanalyse()
 		else
 			return;
 	}
+	//打开标准ROI模板视频
+	if (videoFilename_std.empty())
+	{
+		//string _Path;
+		CFileDialog Openfiledlg(TRUE, NULL, NULL, OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, _T("Video Files (*.rmvb;*.avi)|*.rmvb;*.avi||"));
+		if (Openfiledlg.DoModal() == IDOK) //弹出模态对话框
+		{
+			//CString类型转换为string类型
+			CString  filepath;
+			filepath = Openfiledlg.GetPathName();
+			CStringA temp(filepath.GetBuffer(0));
+			filepath.ReleaseBuffer();
+			videoFilename_std = temp.GetBuffer(0);
+			temp.ReleaseBuffer();
+		}
+		else
+			return;
+	}
+
+	//打开标准模板视频
+	if (videoFilename_color_std.empty())
+	{
+		//string _Path;
+		CFileDialog Openfiledlg(TRUE, NULL, NULL, OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, _T("Video Files (*.rmvb;*.avi)|*.rmvb;*.avi||"));
+		if (Openfiledlg.DoModal() == IDOK) //弹出模态对话框
+		{
+			//CString类型转换为string类型
+			CString  filepath;
+			filepath = Openfiledlg.GetPathName();
+			CStringA temp(filepath.GetBuffer(0));
+			filepath.ReleaseBuffer();
+			videoFilename_color_std = temp.GetBuffer(0);
+			temp.ReleaseBuffer();
+		}
+		else
+			return;
+	}
+
 	CString hintStr(cameraVideoSavePath.c_str());
 	CString tmpSavePathStr(cameraVideoSavePath.c_str());
 	hintStr = _T("确定处理名为") + tmpSavePathStr + _T(" 的视频？");
@@ -631,34 +683,47 @@ void CMFMarchTrainDlg::OnBnClickedbtnvideoanalyse()
 	if (AfxMessageBox(hintStr, MB_YESNO | MB_ICONQUESTION) == IDYES)
 	{
 		//=========================================【提取test前景视频并时行处理】=================================================
-		videoFilename_std = "std_ROI_J0101.avi";
+		/*videoFilename_std = "std_ROI_J0101.avi";
 		videoFilename_test.assign(cameraVideoSavePath);
-		videoFilename_color_std = "std_color_ROI_J0101.avi";
+		videoFilename_color_std = "std_color_ROI_J0101.avi";*/
 		capture_std = VideoCapture(videoFilename_std);
 		capture_color_std = VideoCapture(videoFilename_color_std);
 		capture_test = VideoCapture(videoFilename_test);			//新兵的视频，从录入的视频中读取	
 		//coin_rate_file.open("D:\\M.A.thesis\\2019.04.11.TrainProject\\TrainProject\\coin_rate_file\\JBQ\\coin_rate_file_k1111.xls");
 		coin_rate_file.open("coin_rate_file_k1111.xls");
-
-		
 		//string outVideo_test = "D:\\M.A.thesis\\ProjectData\\2019.04.16.JINGBEIQU\\k1111.avi";					//test视频处理好的视频保存位置
-		string outVideo_test = "k1111.avi";					//test视频处理好的视频保存位置
-
-		testVideoWrite.open(outVideo_test, CV_FOURCC('D', 'I', 'V', '3'), 5, Size(360, 480), false);
-		CFileDialog saveFiledlg(FALSE, NULL, NULL, OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, _T("Video Files (*.rmvb;*.avi)|*.rmvb;*.avi||"));
-		if (saveFiledlg.DoModal() == IDOK) //弹出模态对话框
+		outVideo_test = "k1111.avi";					//test视频处理好的视频保存位置
+		if (AfxMessageBox(_T("是否另存提取的前景视频？否则默认存到k1111.avi"), MB_YESNO | MB_ICONQUESTION) == IDYES)
 		{
-			//CString类型转换为string类型
-			CString  filepath;
-			filepath = saveFiledlg.GetPathName();
-			CStringA temp(filepath.GetBuffer(0));
-			filepath.ReleaseBuffer();
-			string outVideo = temp.GetBuffer(0);
-			contrastVideoWriter.open(outVideo, CV_FOURCC('D', 'I', 'V', '3'), 5, Size(360, 480), true);
-			temp.ReleaseBuffer();
+			CFileDialog saveFiledlg(FALSE, NULL, NULL, OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, _T("Video Files (*.rmvb;*.avi)|*.rmvb;*.avi||"));
+			if (saveFiledlg.DoModal() == IDOK) //弹出模态对话框
+			{
+				//CString类型转换为string类型
+				CString  filepath;
+				filepath = saveFiledlg.GetPathName();
+				CStringA temp(filepath.GetBuffer(0));
+				filepath.ReleaseBuffer();
+				outVideo_test = temp.GetBuffer(0);
+				testVideoWrite.open(outVideo_test, CV_FOURCC('D', 'I', 'V', '3'), 5, Size(360, 480), true);
+				temp.ReleaseBuffer();
+			}
 		}
-		else
-			return;
+		outVideo = "k1111Compare.avi";
+		if (AfxMessageBox(_T("是否另存生成的叠加视频？否则默认存到k1111Compare.avi"), MB_YESNO | MB_ICONQUESTION) == IDYES)
+		{
+			CFileDialog saveFiledlg(FALSE, NULL, NULL, OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, _T("Video Files (*.rmvb;*.avi)|*.rmvb;*.avi||"));
+			if (saveFiledlg.DoModal() == IDOK) //弹出模态对话框
+			{
+				//CString类型转换为string类型
+				CString  filepath;
+				filepath = saveFiledlg.GetPathName();
+				CStringA temp(filepath.GetBuffer(0));
+				filepath.ReleaseBuffer();
+				outVideo = temp.GetBuffer(0);
+				contrastVideoWriter.open(outVideo, CV_FOURCC('D', 'I', 'V', '3'), 5, Size(360, 480), true);
+				temp.ReleaseBuffer();
+			}
+		}
 		//string outVideo = "D:\\M.A.thesis\\ProjectData\\2019.04.16.JINGBEIQU\\k1111.avi";			//视频比对处理好后保存的位置
 		//string outVideo = "k1111duibi.avi";			//视频比对处理好后保存的位置
 		//contrastVideoWriter.open(outVideo, CV_FOURCC('D', 'I', 'V', '3'), 5, Size(360, 480), true);
@@ -675,10 +740,10 @@ void CMFMarchTrainDlg::OnBnClickedbtnvideoanalyse()
 			AfxMessageBox(tmpStr);
 			return;
 		}
-		infoStr = _T("开始处理视频");
+		infoStr = _T("开始处理视频\r\n");
 		//CString tmpStr(_T("开始处理视频"));
 		editInfo.SetWindowTextW(infoStr);
-		SetTimer(1, 40, NULL);//激活处理程序时钟消息
+		SetTimer(1, 20, NULL);//激活处理程序时钟消息
 	}
 
 
@@ -941,3 +1006,14 @@ bool CMFMarchTrainDlg::Training_Assistant()
 	}
 	
 }
+
+
+//BOOL CAboutDlg::OnInitDialog()
+//{
+//	CDialogEx::OnInitDialog();
+//
+//	// TODO:  在此添加额外的初始化
+//
+//	return TRUE;  // return TRUE unless you set the focus to a control
+//	// 异常:  OCX 属性页应返回 FALSE
+//}
